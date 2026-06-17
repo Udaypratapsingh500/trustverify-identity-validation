@@ -29,33 +29,50 @@ public class UserService {
             throw new RuntimeException("Phone already exists");
         }
 
+        // Customer ID Generate
+        String customerId = "TV" + System.currentTimeMillis();
+        user.setCustomerId(customerId);
+
         user.setEmailVerified(false);
-
-        // Phone OTP use nahi kar rahe
-        user.setPhoneVerified(true);
-
+        user.setPhoneVerified(false);
         user.setAccountActive(false);
 
         Random random = new Random();
 
-        String emailOtp = String.valueOf(100000 + random.nextInt(900000));
+        String emailOtp =
+                String.valueOf(100000 + random.nextInt(900000));
+
+        String phoneOtp =
+                String.valueOf(100000 + random.nextInt(900000));
 
         user.setEmailOtp(emailOtp);
+        user.setPhoneOtp(phoneOtp);
 
+        // Email Send
         SimpleMailMessage message = new SimpleMailMessage();
+
         message.setTo(user.getEmail());
-        message.setSubject("TrustVerify Email OTP");
+
+        message.setSubject(
+                "TrustVerify Registration Verification"
+        );
+
         message.setText(
-                "Hello " + user.getName()
-                        + "\n\nYour OTP is : " + emailOtp
-                        + "\n\nPlease do not share this OTP."
+                "Hello " + user.getName() +
+                        "\n\nCustomer ID : " + customerId +
+                        "\nEmail OTP : " + emailOtp +
+                        "\n\nPlease verify your account." +
+                        "\n\nTrustVerify Team"
         );
 
         mailSender.send(message);
 
-        System.out.println("========================");
-        System.out.println("EMAIL OTP : " + emailOtp);
-        System.out.println("========================");
+        // Console Print
+        System.out.println("================================");
+        System.out.println("CUSTOMER ID : " + customerId);
+        System.out.println("EMAIL OTP   : " + emailOtp);
+        System.out.println("PHONE OTP   : " + phoneOtp);
+        System.out.println("================================");
 
         return userRepository.save(user);
     }
@@ -63,14 +80,18 @@ public class UserService {
     public String verifyEmailOtp(String email, String otp) {
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
 
         if (user.getEmailOtp() != null &&
                 user.getEmailOtp().equals(otp)) {
 
             user.setEmailVerified(true);
 
-            // Email verify hote hi account active
+            // Demo Mode
+            user.setPhoneVerified(true);
+
+            // Activate Account
             user.setAccountActive(true);
 
             userRepository.save(user);
@@ -81,9 +102,27 @@ public class UserService {
         return "Invalid OTP";
     }
 
-    // Dummy method (phone OTP use nahi kar rahe)
     public String verifyPhoneOtp(String phone, String otp) {
-        return "Phone OTP Verification Disabled";
+
+        User user = userRepository.findByPhone(phone)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        if (user.getPhoneOtp() != null &&
+                user.getPhoneOtp().equals(otp)) {
+
+            user.setPhoneVerified(true);
+
+            if (user.isEmailVerified()) {
+                user.setAccountActive(true);
+            }
+
+            userRepository.save(user);
+
+            return "Phone Verified Successfully";
+        }
+
+        return "Invalid OTP";
     }
 
     public String login(LoginRequest request) {
@@ -91,7 +130,8 @@ public class UserService {
         User user = userRepository
                 .findByEmailAndPassword(
                         request.getEmail(),
-                        request.getPassword())
+                        request.getPassword()
+                )
                 .orElse(null);
 
         if (user == null) {
